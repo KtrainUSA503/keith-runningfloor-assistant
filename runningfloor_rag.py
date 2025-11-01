@@ -40,18 +40,18 @@ class RunningFloorRAG:
     """
     
     def __init__(self, api_key: str, pdf_path: str):
-        """
-        Initialize the RAG system.
-        
-        Args:
-            api_key: OpenAI API key
-            pdf_path: keith_running_floor_ii_installation_manual.pdf
-        """
-        self.api_key = api_key
-        openai.api_key = api_key
-        self.pdf_path = pdf_path
-        self.chunks: List[DocumentChunk] = []
-        self.embeddings: Optional[np.ndarray] = None
+    """
+    Initialize the RAG system.
+    
+    Args:
+        api_key: OpenAI API key
+        pdf_path: Path to the Running Floor II PDF manual
+    """
+    self.api_key = api_key
+    self.client = openai.OpenAI(api_key=api_key)
+    self.pdf_path = pdf_path
+    self.chunks: List[DocumentChunk] = []
+    self.embeddings: Optional[np.ndarray] = None
         
     def process_document(self) -> None:
         """Extract and chunk the installation manual into semantic sections."""
@@ -122,10 +122,10 @@ class RunningFloorRAG:
         
         for i, chunk in enumerate(self.chunks):
             try:
-                response = openai.embeddings.create(
-                    model="text-embedding-3-small",
-                    input=chunk.content
-                )
+                response = self.client.embeddings.create(
+    model="text-embedding-3-small",
+    input=chunk.content
+)
                 embedding = response.data[0].embedding
                 chunk.embedding = np.array(embedding)
                 embeddings_list.append(embedding)
@@ -152,10 +152,10 @@ class RunningFloorRAG:
             List of most relevant DocumentChunks
         """
         # Generate query embedding
-        response = openai.embeddings.create(
-            model="text-embedding-3-small",
-            input=query
-        )
+        response = self.client.embeddings.create(
+    model="text-embedding-3-small",
+    input=query
+)
         query_embedding = np.array(response.data[0].embedding)
         
         # Calculate cosine similarity
@@ -215,15 +215,15 @@ Please provide a clear, professional answer based on the manual content above.""
 
         # Get answer from GPT-4
         try:
-            response = openai.chat.completions.create(
-                model="gpt-4",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.3,
-                max_tokens=1000
-            )
+           response = self.client.chat.completions.create(
+    model="gpt-4",
+    messages=[
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
+    ],
+    temperature=0.3,
+    max_tokens=1000
+)
             
             answer = response.choices[0].message.content
             
