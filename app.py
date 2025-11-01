@@ -84,7 +84,7 @@ st.markdown("""
 def initialize_rag():
     """Initialize and cache the RAG system."""
     api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
-    pdf_path = "/mnt/user-data/uploads/keith_running_floor_ii_installation_manual.pdf"
+    pdf_path = "keith_running_floor_ii_installation_manual.pdf"
     
     if not api_key:
         st.error("❌ OpenAI API key not found. Please set OPENAI_API_KEY environment variable.")
