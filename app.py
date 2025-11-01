@@ -109,7 +109,7 @@ def main():
     
     # Sidebar
     with st.sidebar:
-        st.image("https://via.placeholder.com/200x80/C8102E/FFFFFF?text=KEITH+MFG", use_container_width=True)
+        st.image("https://via.placeholder.com/200x80/C8102E/FFFFFF?text=KEITH+MFG", use_column_width=True)
         
         st.markdown("### 📋 About This System")
         st.info("""
