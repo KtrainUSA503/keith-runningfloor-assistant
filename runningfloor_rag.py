@@ -45,7 +45,7 @@ class RunningFloorRAG:
         
         Args:
             api_key: OpenAI API key
-            pdf_path: Path to the Running Floor II PDF manual
+            pdf_path: keith_running_floor_ii_installation_manual.pdf
         """
         self.api_key = api_key
         openai.api_key = api_key
