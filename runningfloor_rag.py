@@ -47,6 +47,9 @@ class RunningFloorRAG:
             api_key: OpenAI API key
             pdf_path: Path to the Running Floor II PDF manual
         """
+        if not api_key:
+            raise ValueError("OpenAI API key is required but was not provided")
+        
         self.api_key = api_key
         self.client = openai.OpenAI(api_key=api_key)
         self.pdf_path = pdf_path
