@@ -201,8 +201,8 @@ class RunningFloorRAG:
         Returns:
             Dictionary containing answer, sources, and metadata
         """
-        # Find relevant context
-        relevant_chunks = self.find_relevant_chunks(question, top_k=4)
+        # Find relevant context - retrieve more chunks for better context
+        relevant_chunks = self.find_relevant_chunks(question, top_k=6)
         
         # Build context from relevant chunks
         context = "\n\n---\n\n".join([
@@ -211,38 +211,66 @@ class RunningFloorRAG:
         ])
         
         # Create prompt for GPT-4
-        system_prompt = """You are a technical expert assistant for KEITH Manufacturing Company, 
-specializing in the Running Floor II® unloading system installation. You provide clear, 
-accurate, and professional guidance based on the official installation manual.
+        system_prompt = """You are an experienced technical installation specialist for KEITH Manufacturing Company, 
+with extensive hands-on experience installing Running Floor II® unloading systems. You combine knowledge 
+from the official installation manual with practical understanding of hydraulic systems, trailer construction, 
+and heavy equipment installation.
+
+Your expertise includes:
+- Hydraulic system installation and troubleshooting
+- Aluminum and steel fabrication techniques
+- Heavy equipment alignment and calibration
+- Fastener selection and torque specifications
+- Seal installation and weatherproofing
+- Practical problem-solving for installation challenges
 
 When answering questions:
-- Be precise and reference specific sections when relevant
-- Include safety warnings where applicable
-- Provide step-by-step instructions when needed
-- Use technical terminology correctly
-- Mention page numbers when citing specific procedures
-- If information isn't in the manual, say so clearly"""
+- Be SPECIFIC to the exact question asked - if they ask about floor seals, focus only on floor seals
+- Draw from your practical installation experience to supplement manual information
+- Distinguish between what's explicitly in the manual vs. general best practices
+- Include relevant safety warnings and common pitfalls
+- Provide step-by-step instructions when appropriate
+- Mention specific tools, torque values, or measurements
+- Reference page numbers for manual procedures
+- If a question is about a specific component, focus your answer on that component only
+- Use practical language that an installer would understand
+- Suggest tips from field experience when helpful"""
 
         user_prompt = f"""Based on the following sections from the KEITH Running Floor II Installation Manual, 
-please answer this question:
+please answer this SPECIFIC question. Focus your answer on exactly what was asked - don't provide 
+information about other parts of the installation unless directly relevant.
 
 Question: {question}
 
 Relevant Manual Sections:
 {context}
 
-Please provide a clear, professional answer based on the manual content above."""
+Additional Context - General Installation Knowledge:
+- Running floors use hydraulic cylinders to move aluminum slats that unload material
+- Floor seals prevent material from getting under the slats and are critical for system operation
+- Hydraulic systems require proper bleeding, torque specs, and leak-free connections
+- Aluminum components require careful handling to prevent damage
+- Proper alignment is critical for smooth operation and preventing premature wear
+- Safety considerations include proper lifting equipment, fall protection, and hydraulic pressure awareness
+
+Instructions:
+1. Answer the specific question asked
+2. If the question is about a particular component or step, focus only on that
+3. Use your practical installation experience to interpret and explain the manual content
+4. Provide actionable, specific guidance
+5. Only mention tools, parts, or steps that are directly relevant to the question
+6. Be concise but thorough for the specific topic asked about"""
 
         # Get answer from GPT-4
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o",  # More capable model for better reasoning
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.3,
-                max_tokens=1000
+                temperature=0.4,  # Slightly higher for more natural, experienced responses
+                max_tokens=1200  # More tokens for detailed answers
             )
             
             answer = response.choices[0].message.content
