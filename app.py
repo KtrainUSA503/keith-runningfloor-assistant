@@ -1,277 +1,165 @@
 """
 KEITH Running Floor II Installation Assistant
-==============================================
-
-Professional web interface for the KEITH Running Floor II RAG system.
-Built with Streamlit for easy deployment and user interaction.
+Streamlit App
 """
 
 import streamlit as st
-import os
 from runningfloor_rag import RunningFloorRAG
+import os
 
-
-# Page configuration
+# Page config
 st.set_page_config(
     page_title="KEITH Running Floor II Assistant",
-    page_icon="🔧",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_icon="🚛",
+    layout="wide"
 )
 
-# Custom CSS for KEITH branding
-st.markdown("""
-    <style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #C8102E;
-        margin-bottom: 0.5rem;
-    }
-    .sub-header {
-        font-size: 1.2rem;
-        color: #6B6B6B;
-        margin-bottom: 2rem;
-    }
-    .question-box {
-        background-color: #F8F9FA;
-        padding: 1.5rem;
-        border-radius: 10px;
-        border-left: 4px solid #C8102E;
-        margin: 1rem 0;
-    }
-    .answer-box {
-        background-color: #FFFFFF;
-        padding: 1.5rem;
-        border-radius: 10px;
-        border: 1px solid #E5E5E5;
-        margin: 1rem 0;
-    }
-    .source-box {
-        background-color: #F8F9FA;
-        padding: 1rem;
-        border-radius: 8px;
-        margin: 0.5rem 0;
-        font-size: 0.9rem;
-    }
-    .keith-badge {
-        background-color: #C8102E;
-        color: white;
-        padding: 0.3rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-    }
-    .stButton>button {
-        background-color: #C8102E;
-        color: white;
-        font-weight: 600;
-        border-radius: 8px;
-        padding: 0.5rem 2rem;
-        border: none;
-        transition: all 0.3s;
-    }
-    .stButton>button:hover {
-        background-color: #A00D24;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
-    </style>
-""", unsafe_allow_html=True)
+def get_api_key():
+    """Get API key from Streamlit secrets or environment variable."""
+    try:
+        # Try Streamlit secrets first (for Streamlit Cloud)
+        return st.secrets["OPENAI_API_KEY"]
+    except (KeyError, FileNotFoundError):
+        # Fall back to environment variable (for local development)
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            return None
+        return api_key
 
-
-@st.cache_resource
 def initialize_rag():
-    """Initialize and cache the RAG system."""
-    api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
-    pdf_path = "keith_running_floor_ii_installation_manual.pdf"
+    """Initialize the RAG system with proper error handling."""
+    api_key = get_api_key()
     
     if not api_key:
-        st.error("❌ OpenAI API key not found. Please set OPENAI_API_KEY environment variable.")
-        return None
+        st.error("❌ OPENAI_API_KEY not found!")
+        st.info("""
+        Please add your OpenAI API key:
+        
+        **For Streamlit Cloud:**
+        1. Click 'Manage app' in the lower right
+        2. Go to Settings → Secrets
+        3. Add: `OPENAI_API_KEY = "sk-your-key-here"`
+        
+        **For Local Development:**
+        - Set environment variable: `export OPENAI_API_KEY=sk-your-key-here`
+        - Or create a `.streamlit/secrets.toml` file with the key
+        """)
+        st.stop()
     
-    rag = RunningFloorRAG(api_key=api_key, pdf_path=pdf_path)
+    pdf_path = "keith_running_floor_ii_installation_manual.pdf"
     
-    with st.spinner("🔄 Initializing KEITH Running Floor II Assistant..."):
-        if rag.initialize():
-            return rag
-        else:
-            st.error("❌ Failed to initialize RAG system")
-            return None
-
+    # Check if PDF exists
+    if not os.path.exists(pdf_path):
+        st.error(f"❌ PDF file not found: {pdf_path}")
+        st.info("Please ensure the installation manual PDF is in the same directory as app.py")
+        st.stop()
+    
+    try:
+        rag = RunningFloorRAG(api_key=api_key, pdf_path=pdf_path)
+        return rag
+    except ValueError as e:
+        st.error(f"❌ Error initializing RAG: {e}")
+        st.stop()
+    except Exception as e:
+        st.error(f"❌ Unexpected error: {e}")
+        st.stop()
 
 def main():
-    """Main application logic."""
+    st.title("🚛 KEITH Running Floor II Installation Assistant")
+    st.markdown("Ask questions about the Running Floor II installation manual")
     
-    # Header
-    st.markdown('<div class="main-header">🔧 KEITH Running Floor II Assistant</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">Professional Installation Guidance System</div>', unsafe_allow_html=True)
+    # Initialize RAG system (only once per session)
+    if 'rag' not in st.session_state:
+        with st.spinner("🔄 Initializing RAG system... This may take a minute."):
+            st.session_state.rag = initialize_rag()
+            
+            # Initialize the system (process PDF and generate embeddings)
+            if not st.session_state.rag.initialize():
+                st.error("❌ Failed to initialize RAG system")
+                st.stop()
+            
+            st.session_state.initialized = True
     
-    # Sidebar
-    with st.sidebar:
-        st.image("https://via.placeholder.com/200x80/C8102E/FFFFFF?text=KEITH+MFG", use_column_width=True)
-        
-        st.markdown("### 📋 About This System")
-        st.info("""
-        This AI assistant provides expert guidance on installing the **KEITH Running Floor II® Drive System** 
-        based on the official installation manual (Rev. 7.28.15C).
-        """)
-        
-        st.markdown("### 🎯 What You Can Ask")
-        st.markdown("""
-        - Installation procedures
-        - Drive unit alignment
-        - Tool requirements
-        - Flooring installation
-        - Hydraulic system setup
-        - Troubleshooting guidance
-        - Safety warnings
-        - Technical specifications
-        """)
-        
-        st.markdown("### ⚠️ Important Notice")
-        st.warning("""
-        Always refer to the complete official manual for safety-critical procedures. 
-        This assistant is for guidance only.
-        """)
-        
-        st.markdown("---")
-        st.markdown("**KEITH Manufacturing Co.**")
-        st.markdown("📞 800-547-6161")
-        st.markdown("🌐 www.keithwalkingfloor.com")
+    rag = st.session_state.rag
     
-    # Initialize RAG system
-    rag = initialize_rag()
+    # Show success message after initialization
+    if st.session_state.get('initialized'):
+        st.success("✅ System ready! Ask your questions below.")
+        st.session_state.initialized = False  # Only show once
     
-    if rag is None:
-        st.error("System initialization failed. Please check your configuration.")
-        return
-    
-    # Main content area
+    # Create two columns for layout
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        st.markdown("### 💬 Ask Your Installation Question")
-        
-        # Example questions
-        example_questions = [
-            "What are the main steps for installing the drive unit?",
-            "How do I align the drive unit properly?",
-            "What tools are needed for installation?",
-            "How do I install the floor seals?",
-            "What is the recommended torque for floor bolts?",
-            "How do I prepare the trailer for installation?"
-        ]
-        
-        # Question input
+        st.subheader("Ask a Question")
         question = st.text_area(
-            "Enter your question:",
+            "Enter your question about the installation:",
             height=100,
-            placeholder="Example: How do I align the drive unit in a center frame trailer?",
-            help="Ask anything about the Running Floor II installation process"
+            placeholder="e.g., How do I install the drive unit?"
         )
         
-        # Example questions dropdown
-        selected_example = st.selectbox(
-            "Or select an example question:",
-            [""] + example_questions,
-            help="Choose from common installation questions"
-        )
-        
-        # Use selected example if provided
-        if selected_example:
-            question = selected_example
-        
-        # Submit button
-        if st.button("🔍 Get Answer", use_container_width=True):
-            if question.strip():
-                with st.spinner("🤔 Analyzing installation manual..."):
-                    result = rag.answer_question(question)
-                    
-                    # Display question
-                    st.markdown(f'<div class="question-box"><strong>❓ Your Question:</strong><br/>{question}</div>', 
-                               unsafe_allow_html=True)
-                    
-                    if result["success"]:
-                        # Display answer
-                        st.markdown(f'<div class="answer-box"><strong>💡 Answer:</strong><br/>{result["answer"]}</div>', 
-                                   unsafe_allow_html=True)
-                        
-                        # Display sources
-                        st.markdown("### 📚 Referenced Manual Sections")
-                        for i, source in enumerate(result["sources"], 1):
-                            with st.expander(f"📄 Source {i}: {source['section']} (Page {source['page']})"):
-                                st.markdown(f"**Section:** {source['section']}")
-                                st.markdown(f"**Page:** {source['page']}")
-                                st.markdown(f"**Preview:** {source['preview']}")
-                    else:
-                        st.error(f"❌ Error: {result['answer']}")
-            else:
-                st.warning("⚠️ Please enter a question or select an example.")
+        ask_button = st.button("🔍 Get Answer", type="primary", use_container_width=True)
     
     with col2:
-        st.markdown("### 📖 Manual Overview")
+        st.subheader("Example Questions")
+        examples = [
+            "What are the main installation steps?",
+            "How do I align the drive unit?",
+            "What tools are needed?",
+            "How do I install floor seals?",
+            "What are the safety requirements?"
+        ]
         
-        # Manual statistics
-        st.metric("Total Pages", "55")
-        st.metric("Chapters", "7")
-        st.metric("Appendices", "5")
+        for example in examples:
+            if st.button(example, key=example, use_container_width=True):
+                question = example
+                ask_button = True
+    
+    # Process question
+    if ask_button and question:
+        with st.spinner("🤔 Searching the manual..."):
+            result = rag.answer_question(question)
         
-        st.markdown("---")
+        if result['success']:
+            st.markdown("---")
+            st.subheader("💡 Answer")
+            st.markdown(result['answer'])
+            
+            # Show sources in an expander
+            with st.expander("📚 View Sources from Manual", expanded=False):
+                for i, source in enumerate(result['sources'], 1):
+                    st.markdown(f"**Source {i}: {source['section']}** (Page {source['page']})")
+                    st.caption(source['preview'])
+                    if i < len(result['sources']):
+                        st.markdown("---")
+        else:
+            st.error("❌ Error")
+            st.write(result['answer'])
+    
+    # Sidebar with info
+    with st.sidebar:
+        st.header("About")
+        st.info("""
+        This assistant helps you find information from the 
+        **KEITH Running Floor II Installation Manual**.
         
-        st.markdown("### 📑 Manual Sections")
-        sections = {
-            "Introduction": "1",
-            "Trailer Prep": "2-8",
-            "Sub-Deck": "9-16",
-            "Drive Unit": "16-21",
-            "Flooring": "22-35",
-            "Hydraulic": "36-37",
-            "Misc": "38-41",
-            "Appendices": "42-55"
-        }
-        
-        for section, pages in sections.items():
-            st.markdown(f'<span class="keith-badge">{section}</span> Pages {pages}', 
-                       unsafe_allow_html=True)
-            st.markdown("")
-        
-        st.markdown("---")
-        
-        st.markdown("### ⏱️ Installation Time")
-        st.info("**Estimated:** 35-100 hours\n\nDepends on experience and trailer adaptability")
-        
-        st.markdown("### 🔧 Key Systems")
-        st.markdown("""
-        - Drive Unit (Center Frame or Frameless)
-        - Sub-Deck Structure
-        - Floor Slats & Bearings
-        - Hydraulic System
-        - Side Seals
-        - Front Shield
+        Ask questions in natural language and get answers based 
+        on the official manual content.
         """)
-    
-    # Footer
-    st.markdown("---")
-    col_f1, col_f2, col_f3 = st.columns(3)
-    
-    with col_f1:
-        st.markdown("**🏢 KEITH Manufacturing Co.**")
-        st.markdown("World Headquarters")
-    
-    with col_f2:
-        st.markdown("**📞 Contact**")
-        st.markdown("800-547-6161")
-        st.markdown("541-475-3802")
-    
-    with col_f3:
-        st.markdown("**⚠️ Safety First**")
-        st.markdown("Always follow official manual procedures")
-    
-    # Session state for chat history (optional future enhancement)
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
-
+        
+        st.header("Tips")
+        st.markdown("""
+        - Be specific in your questions
+        - Ask about installation steps, tools, or specifications
+        - Check the sources to verify information
+        - Reference page numbers for detailed procedures
+        """)
+        
+        if st.session_state.get('rag'):
+            st.header("System Status")
+            num_chunks = len(st.session_state.rag.chunks)
+            st.metric("Document Chunks", num_chunks)
+            st.success("✅ System Active")
 
 if __name__ == "__main__":
     main()
