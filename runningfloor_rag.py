@@ -51,10 +51,27 @@ class RunningFloorRAG:
             raise ValueError("OpenAI API key is required but was not provided")
         
         self.api_key = api_key
-        self.client = openai.OpenAI(api_key=api_key)
         self.pdf_path = pdf_path
         self.chunks: List[DocumentChunk] = []
         self.embeddings: Optional[np.ndarray] = None
+        
+        # Initialize OpenAI client with minimal parameters to avoid environment conflicts
+        # This avoids issues with proxies or other environment-specific parameters
+        try:
+            self.client = openai.OpenAI(api_key=api_key)
+        except TypeError as e:
+            # If there's a parameter conflict, try with explicit http_client=None
+            try:
+                self.client = openai.OpenAI(api_key=api_key, http_client=None)
+            except:
+                # Last resort: use only api_key
+                import httpx
+                self.client = openai.OpenAI(
+                    api_key=api_key,
+                    http_client=httpx.Client()
+                )
+        except Exception as e:
+            raise ValueError(f"Failed to initialize OpenAI client: {str(e)}")
         
     def process_document(self) -> None:
         """Extract and chunk the installation manual into semantic sections."""
